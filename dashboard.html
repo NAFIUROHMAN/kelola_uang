@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Aplikasi Keuangan Pribadi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="dash.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Top Navbar -->
+  <div class="top-navbar">
+    <div class="logo">
+      <h2>Keuangan Pribadi</h2>
+    </div>
+    <div class="navbar-right">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Cari...">
+      </div>
+      <div class="user-profile">
+        <span>Halo, <strong>Napik</strong></span>
+        <div class="avatar">N</div>
+      </div>
+      <a href="#" id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Keluar</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="header-section">
+      <h1>Dashboard Keuangan</h1>
+      <button class="btn-primary" id="addTransactionBtn">
+        <i class="fas fa-plus"></i> Tambah Transaksi
+      </button>
+    </div>
+
+    <!-- Ringkasan Keuangan -->
+    <div class="summary-cards">
+      <div class="card">
+        <div class="card-header">
+          <h3>Saldo Bulan Ini</h3>
+          <i class="fas fa-wallet"></i>
+        </div>
+        <div class="card-body" id="saldoBulanan">
+          Rp0
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Total Pemasukan</h3>
+          <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="card-body" id="totalPemasukan">
+          Rp0
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Total Pengeluaran</h3>
+          <i class="fas fa-arrow-up"></i>
+        </div>
+        <div class="card-body" id="totalPengeluaran">
+          Rp0
+        </div>
+      </div>
+    </div>
+
+    <!-- Grafik -->
+    <div class="chart-section">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Pengeluaran per Kategori</h3>
+          <select id="chartPeriod">
+            <option value="month">Bulan Ini</option>
+            <option value="week">Minggu Ini</option>
+          </select>
+        </div>
+        <div class="chart-container">
+          <canvas id="expenseChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Perbandingan Pemasukan & Pengeluaran</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="incomeVsExpenseChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaksi Terakhir -->
+    <div class="recent-transactions">
+      <div class="section-header">
+        <h3>Transaksi Terakhir</h3>
+        <a href="#" class="view-all">Lihat Semua</a>
+      </div>
+      <table id="transactionsTable">
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>Jenis</th>
+            <th>Kategori</th>
+            <th>Deskripsi</th>
+            <th>Nominal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Data akan diisi oleh JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Tambah Transaksi -->
+  <div class="modal" id="transactionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Tambah Transaksi Baru</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <form id="transactionForm">
+          <!-- Jenis Transaksi -->
+          <div class="form-group">
+            <label for="transactionType">Jenis Transaksi</label>
+            <select id="transactionType" class="form-control" required>
+              <option value="" disabled selected>Pilih Jenis</option>
+              <option value="income">Pemasukan</option>
+              <option value="expense">Pengeluaran</option>
+            </select>
+          </div>
+  
+          <!-- Kategori (akan muncul jika pengeluaran) -->
+          <div class="form-group" id="categoryGroup" style="display: none;">
+            <label for="transactionCategory">Kategori</label>
+            <select id="transactionCategory" class="form-control">
+              <option value="" disabled selected>Pilih Kategori</option>
+              <option value="kebutuhan">Kebutuhan</option>
+              <option value="keinginan">Keinginan</option>
+              <option value="tabungan">Tabungan</option>
+            </select>
+          </div>
+  
+          <!-- Tanggal -->
+          <div class="form-group">
+            <label for="transactionDate">Tanggal</label>
+            <input type="date" id="transactionDate" class="form-control" required>
+          </div>
+  
+          <!-- Nama Transaksi -->
+          <div class="form-group">
+            <label for="transactionName">Nama Transaksi</label>
+            <input type="text" id="transactionName" class="form-control" 
+                   placeholder="Contoh: Gaji Bulanan, Belanja Bulanan" required>
+          </div>
+  
+          <!-- Nominal -->
+          <div class="form-group">
+            <label for="transactionAmount">Nominal (Rp)</label>
+            <input type="number" id="transactionAmount" class="form-control" 
+                   placeholder="Masukkan nominal" required>
+          </div>
+  
+          <!-- Footer Modal -->
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan Transaksi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
