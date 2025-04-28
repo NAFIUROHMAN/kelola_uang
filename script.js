@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const isLoggedIn = localStorage.getItem('isLoggedIn');
         if (isLoggedIn !== 'true') {
             window.location.href = 'index.html';
+        } else {
+            loadDashboardData(); // <- Panggil load setelah login OK
         }
     }
 });
@@ -44,17 +46,16 @@ document.getElementById('logoutBtn')?.addEventListener('click', function(e) {
     window.location.href = 'index.html';
 });
 
-// MODAL TRANSAKSI - FINAL FIXED VERSION
+// MODAL TRANSAKSI
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('transactionModal');
     const addBtn = document.getElementById('addTransactionBtn');
     const closeBtn = document.querySelector('.modal-close');
     
-    // Pastikan elemen ada sebelum menambahkan event listener
     if (addBtn && modal) {
         addBtn.addEventListener('click', function() {
             modal.classList.add('show');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            document.body.style.overflow = 'hidden';
             document.getElementById('transactionDate').valueAsDate = new Date();
         });
     }
@@ -75,7 +76,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Transaction type handler
     const transactionType = document.getElementById('transactionType');
     const categoryGroup = document.getElementById('categoryGroup');
     const transactionCategory = document.getElementById('transactionCategory');
@@ -87,7 +87,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Form submission
     const transactionForm = document.getElementById('transactionForm');
     if (transactionForm) {
         transactionForm.addEventListener('submit', function(e) {
@@ -102,8 +101,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 amount: Number(document.getElementById('transactionAmount').value)
             };
 
-            saveTransaction(transactionData);
-            
+            // Panggil fungsi untuk mengirim data ke Google Apps Script
+            saveTransactionToGoogle(transactionData);
+
+            // Reset form dan tutup modal
             this.reset();
             modal.classList.remove('show');
             document.body.style.overflow = '';
@@ -111,80 +112,73 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// SAVE TRANSACTION
-async function saveTransaction(data) {
-    const API_URL = 'https://script.google.com/macros/s/AKfycby2jWNETGwfH3tUe6ikEbaW8y-APRJz9iU7S_qCAzePVEcb1ELcoX5b2eA8gFBvFOWLyw/exec';
+// SAVE TRANSACTION TO GOOGLE (KE GOOGLE SCRIPT)
+function saveTransactionToGoogle(data) {
+    const scriptUrl = 'https://script.google.com/macros/s/AKfycbzjgIm3T25tOPcVkBTLjK41Ip81V-7tEkz_IUjEI_VVBvp-zTVJfL3kL-4REn_qSyZi5A/exec'; // Ganti dengan URL Apps Script kamu
 
-    const formData = new URLSearchParams();
-    formData.append('type', data.type);
-    formData.append('category', data.category);
-    formData.append('date', data.date);
-    formData.append('name', data.name);
-    formData.append('amount', data.amount);
-
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: formData.toString()
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gagal menyimpan transaksi: ${response.status} - ${errorText}`);
-        }
-
-        const result = await response.text();
-        console.log(result);
+    // Mengirim data ke Google Apps Script menggunakan POST
+    fetch(scriptUrl, {
+        method: 'POST',
+        contentType: 'application/json',
+        body: JSON.stringify(data)
+    })
+    .then(response => response.text())
+    .then(result => {
         alert('Transaksi berhasil disimpan!');
-        if (typeof loadDashboardData === 'function') {
-            loadDashboardData();
-        }
-    } catch (error) {
-        console.error('Error Transaksi:', error);
-        alert(`Terjadi kesalahan saat menyimpan: ${error.message}`);
-    }
+        loadDashboardData(); // Refresh dashboard setelah transaksi disimpan
+    })
+    .catch(error => {
+        console.error('Terjadi kesalahan:', error);
+        alert('Gagal menyimpan transaksi');
+    });
 }
 
-// LOAD DASHBOARD
+// LOAD DASHBOARD (LOCAL)
 function loadDashboardData() {
-    const webAppUrl = 'https://script.google.com/macros/s/AKfycby2jWNETGwfH3tUe6ikEbaW8y-APRJz9iU7S_qCAzePVEcb1ELcoX5b2eA8gFBvFOWLyw/exec?action=getData';
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
 
-    fetch(webAppUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+    let saldo = 0;
+    let totalPemasukan = 0;
+    let totalPengeluaran = 0;
+    let pengeluaranKebutuhan = 0;
+    let pengeluaranKeinginan = 0;
+
+    transactions.forEach(tx => {
+        if (tx.type === 'income') {
+            saldo += tx.amount;
+            totalPemasukan += tx.amount;
+        } else if (tx.type === 'expense') {
+            saldo -= tx.amount;
+            totalPengeluaran += tx.amount;
+            if (tx.category === 'Kebutuhan') {
+                pengeluaranKebutuhan += tx.amount;
+            } else {
+                pengeluaranKeinginan += tx.amount;
             }
-            return response.json();
-        })
-        .then(data => {
-            document.getElementById('saldoBulanan').textContent = formatCurrency(data.saldo);
-            document.getElementById('totalPemasukan').textContent = formatCurrency(data.totalPemasukan);
-            document.getElementById('totalPengeluaran').textContent = formatCurrency(data.totalPengeluaran);
+        }
+    });
 
-            const tableBody = document.querySelector('#transactionsTable tbody');
-            tableBody.innerHTML = '';
+    document.getElementById('saldoBulanan').textContent = formatCurrency(saldo);
+    document.getElementById('totalPemasukan').textContent = formatCurrency(totalPemasukan);
+    document.getElementById('totalPengeluaran').textContent = formatCurrency(totalPengeluaran);
 
-            data.transaksiTerakhir.forEach(transaksi => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${formatDate(transaksi.tanggal)}</td>
-                    <td>${transaksi.jenis}</td>
-                    <td>${transaksi.kategori || '-'}</td>
-                    <td>${transaksi.deskripsi}</td>
-                    <td class="${transaksi.jenis === 'Pemasukan' ? 'text-success' : 'text-danger'}">${formatCurrency(transaksi.nominal)}</td>
-                `;
-                tableBody.appendChild(row);
-            });
+    const tableBody = document.querySelector('#transactionsTable tbody');
+    tableBody.innerHTML = '';
 
-            updateCharts(data);
-        })
-        .catch(error => {
-            console.error('Load dashboard error:', error);
-            alert('Gagal memuat data dashboard!');
-        });
+    // Tampilkan 10 transaksi terakhir
+    transactions.slice(-10).reverse().forEach(transaksi => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${formatDate(transaksi.date)}</td>
+            <td>${transaksi.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}</td>
+            <td>${transaksi.category || '-'}</td>
+            <td>${transaksi.name}</td>
+            <td class="${transaksi.type === 'income' ? 'text-success' : 'text-danger'}">${formatCurrency(transaksi.amount)}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+
+    updateCharts({ pengeluaranKebutuhan, pengeluaranKeinginan, totalPemasukan, totalPengeluaran });
 }
 
 // FORMAT CURRENCY
@@ -205,9 +199,7 @@ function formatDate(dateString) {
 // UPDATE CHARTS
 function updateCharts(data) {
     const expenseCtx = document.getElementById('expenseChart').getContext('2d');
-    if (window.expenseChart) {
-        window.expenseChart.destroy();
-    }
+    if (window.expenseChart) window.expenseChart.destroy();
     window.expenseChart = new Chart(expenseCtx, {
         type: 'doughnut',
         data: {
@@ -221,16 +213,12 @@ function updateCharts(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' }
-            }
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 
     const incomeVsExpenseCtx = document.getElementById('incomeVsExpenseChart').getContext('2d');
-    if (window.incomeVsExpenseChart) {
-        window.incomeVsExpenseChart.destroy();
-    }
+    if (window.incomeVsExpenseChart) window.incomeVsExpenseChart.destroy();
     window.incomeVsExpenseChart = new Chart(incomeVsExpenseCtx, {
         type: 'bar',
         data: {
@@ -245,12 +233,8 @@ function updateCharts(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true }
-            },
-            plugins: {
-                legend: { display: false }
-            }
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
         }
     });
 }
